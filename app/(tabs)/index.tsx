@@ -7,21 +7,30 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, Line, Rect } from "react-native-svg";
+
+type DivvyShape = "circle" | "rectangle";
 
 export default function DivvyHomeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [pieces, setPieces] = useState(5);
   const [rotation, setRotation] = useState(-90);
   const [radiusScale, setRadiusScale] = useState(1);
+  const [shape, setShape] = useState<DivvyShape>("circle");
 
   const { width, height } = useWindowDimensions();
 
   const centerX = width / 2;
   const centerY = height / 2;
-  const radius = Math.min(width, height) * 0.35 * radiusScale;
 
-  const lines = useMemo(() => {
+  const circleRadius = Math.min(width, height) * 0.35 * radiusScale;
+
+  const rectangleWidth = width * 0.75 * radiusScale;
+  const rectangleHeight = height * 0.32 * radiusScale;
+  const rectangleX = centerX - rectangleWidth / 2;
+  const rectangleY = centerY - rectangleHeight / 2;
+
+  const circleLines = useMemo(() => {
     return Array.from({ length: pieces }, (_, index) => {
       const angleDegrees = rotation + index * (360 / pieces);
       const angleRadians = (angleDegrees * Math.PI) / 180;
@@ -29,11 +38,24 @@ export default function DivvyHomeScreen() {
       return {
         x1: centerX,
         y1: centerY,
-        x2: centerX + radius * Math.cos(angleRadians),
-        y2: centerY + radius * Math.sin(angleRadians),
+        x2: centerX + circleRadius * Math.cos(angleRadians),
+        y2: centerY + circleRadius * Math.sin(angleRadians),
       };
     });
-  }, [pieces, rotation, centerX, centerY, radius]);
+  }, [pieces, rotation, centerX, centerY, circleRadius]);
+
+  const rectangleLines = useMemo(() => {
+    return Array.from({ length: pieces - 1 }, (_, index) => {
+      const lineX = rectangleX + ((index + 1) * rectangleWidth) / pieces;
+
+      return {
+        x1: lineX,
+        y1: rectangleY,
+        x2: lineX,
+        y2: rectangleY + rectangleHeight,
+      };
+    });
+  }, [pieces, rectangleX, rectangleY, rectangleWidth, rectangleHeight]);
 
   if (!permission) {
     return <View style={styles.screen} />;
@@ -56,36 +78,72 @@ export default function DivvyHomeScreen() {
 
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Svg width={width} height={height}>
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={radius}
-            stroke="white"
-            strokeWidth={3}
-            fill="transparent"
-          />
+          {shape === "circle" && (
+            <>
+              <Circle
+                cx={centerX}
+                cy={centerY}
+                r={circleRadius}
+                stroke="white"
+                strokeWidth={3}
+                fill="transparent"
+              />
 
-          <Circle cx={centerX} cy={centerY} r={6} fill="white" />
+              <Circle cx={centerX} cy={centerY} r={6} fill="white" />
 
-          {lines.map((line, index) => (
-            <Line
-              key={index}
-              x1={line.x1}
-              y1={line.y1}
-              x2={line.x2}
-              y2={line.y2}
-              stroke="white"
-              strokeWidth={3}
-            />
-          ))}
+              {circleLines.map((line, index) => (
+                <Line
+                  key={index}
+                  x1={line.x1}
+                  y1={line.y1}
+                  x2={line.x2}
+                  y2={line.y2}
+                  stroke="white"
+                  strokeWidth={3}
+                />
+              ))}
+            </>
+          )}
+
+          {shape === "rectangle" && (
+            <>
+              <Rect
+                x={rectangleX}
+                y={rectangleY}
+                width={rectangleWidth}
+                height={rectangleHeight}
+                stroke="white"
+                strokeWidth={3}
+                fill="transparent"
+              />
+
+              {rectangleLines.map((line, index) => (
+                <Line
+                  key={index}
+                  x1={line.x1}
+                  y1={line.y1}
+                  x2={line.x2}
+                  y2={line.y2}
+                  stroke="white"
+                  strokeWidth={3}
+                />
+              ))}
+            </>
+          )}
         </Svg>
       </View>
 
       <View style={styles.topPanel}>
         <Text style={styles.title}>Divvy</Text>
         <Text style={styles.subtitle}>
-          {pieces} pieces · {(360 / pieces).toFixed(1)}° each
+          {shape} · {pieces} pieces
+          {shape === "circle" ? ` · ${(360 / pieces).toFixed(1)}° each` : ""}
         </Text>
+      </View>
+
+      <View style={styles.shapeControls}>
+        <Button title="Circle" onPress={() => setShape("circle")} />
+        <Button title="Rectangle" onPress={() => setShape("rectangle")} />
       </View>
 
       <View style={styles.controls}>
@@ -111,10 +169,12 @@ export default function DivvyHomeScreen() {
           onPress={() => setRadiusScale((value) => Math.min(1.5, value + 0.1))}
         />
 
-        <Button
-          title="Rotate"
-          onPress={() => setRotation((value) => value + 10)}
-        />
+        {shape === "circle" && (
+          <Button
+            title="Rotate"
+            onPress={() => setRotation((value) => value + 10)}
+          />
+        )}
       </View>
     </View>
   );
@@ -152,6 +212,18 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     marginTop: 4,
+    textTransform: "capitalize",
+  },
+  shapeControls: {
+    position: "absolute",
+    bottom: 135,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    padding: 12,
+    borderRadius: 16,
   },
   controls: {
     position: "absolute",
