@@ -13,12 +13,13 @@ export default function DivvyHomeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [pieces, setPieces] = useState(5);
   const [rotation, setRotation] = useState(-90);
+  const [radiusScale, setRadiusScale] = useState(1);
 
   const { width, height } = useWindowDimensions();
 
   const centerX = width / 2;
   const centerY = height / 2;
-  const radius = Math.min(width, height) * 0.35;
+  const radius = Math.min(width, height) * 0.35 * radiusScale;
 
   const lines = useMemo(() => {
     return Array.from({ length: pieces }, (_, index) => {
@@ -98,6 +99,16 @@ export default function DivvyHomeScreen() {
         <Button
           title="+"
           onPress={() => setPieces((value) => Math.min(16, value + 1))}
+        />
+
+        <Button
+          title="Smaller"
+          onPress={() => setRadiusScale((value) => Math.max(0.5, value - 0.1))}
+        />
+
+        <Button
+          title="Bigger"
+          onPress={() => setRadiusScale((value) => Math.min(1.5, value + 0.1))}
         />
 
         <Button
