@@ -1,7 +1,8 @@
+import Slider from "@react-native-community/slider";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useMemo, useState } from "react";
 import {
-  Button,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -10,29 +11,32 @@ import {
 import Svg, { Circle, Line, Rect } from "react-native-svg";
 
 type DivvyShape = "circle" | "rectangle";
+type RectangleDirection = "horizontal" | "vertical";
 
 export default function DivvyHomeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [pieces, setPieces] = useState(5);
-  const [rotation, setRotation] = useState(-90);
-  const [radiusScale, setRadiusScale] = useState(1);
+  const [sizeScale, setSizeScale] = useState(1);
   const [shape, setShape] = useState<DivvyShape>("circle");
+  const [rectangleDirection, setRectangleDirection] =
+    useState<RectangleDirection>("horizontal");
+  const [controlsVisible, setControlsVisible] = useState(true);
 
   const { width, height } = useWindowDimensions();
 
   const centerX = width / 2;
   const centerY = height / 2;
 
-  const circleRadius = Math.min(width, height) * 0.35 * radiusScale;
+  const circleRadius = Math.min(width, height) * 0.35 * sizeScale;
 
-  const rectangleWidth = width * 0.75 * radiusScale;
-  const rectangleHeight = height * 0.32 * radiusScale;
+  const rectangleWidth = width * 0.8 * sizeScale;
+  const rectangleHeight = height * 0.28 * sizeScale;
   const rectangleX = centerX - rectangleWidth / 2;
   const rectangleY = centerY - rectangleHeight / 2;
 
   const circleLines = useMemo(() => {
     return Array.from({ length: pieces }, (_, index) => {
-      const angleDegrees = rotation + index * (360 / pieces);
+      const angleDegrees = -90 + index * (360 / pieces);
       const angleRadians = (angleDegrees * Math.PI) / 180;
 
       return {
@@ -42,20 +46,38 @@ export default function DivvyHomeScreen() {
         y2: centerY + circleRadius * Math.sin(angleRadians),
       };
     });
-  }, [pieces, rotation, centerX, centerY, circleRadius]);
+  }, [pieces, centerX, centerY, circleRadius]);
 
   const rectangleLines = useMemo(() => {
     return Array.from({ length: pieces - 1 }, (_, index) => {
-      const lineX = rectangleX + ((index + 1) * rectangleWidth) / pieces;
+      if (rectangleDirection === "horizontal") {
+        const lineX = rectangleX + ((index + 1) * rectangleWidth) / pieces;
+
+        return {
+          x1: lineX,
+          y1: rectangleY - 40,
+          x2: lineX,
+          y2: rectangleY + rectangleHeight + 40,
+        };
+      }
+
+      const lineY = rectangleY + ((index + 1) * rectangleHeight) / pieces;
 
       return {
-        x1: lineX,
-        y1: rectangleY,
-        x2: lineX,
-        y2: rectangleY + rectangleHeight,
+        x1: rectangleX - 40,
+        y1: lineY,
+        x2: rectangleX + rectangleWidth + 40,
+        y2: lineY,
       };
     });
-  }, [pieces, rectangleX, rectangleY, rectangleWidth, rectangleHeight]);
+  }, [
+    pieces,
+    rectangleDirection,
+    rectangleX,
+    rectangleY,
+    rectangleWidth,
+    rectangleHeight,
+  ]);
 
   if (!permission) {
     return <View style={styles.screen} />;
@@ -67,7 +89,9 @@ export default function DivvyHomeScreen() {
         <Text style={styles.permissionText}>
           Divvy needs camera access to show the cutting guide.
         </Text>
-        <Button title="Allow camera" onPress={requestPermission} />
+        <Pressable style={styles.primaryButton} onPress={requestPermission}>
+          <Text style={styles.primaryButtonText}>Allow camera</Text>
+        </Pressable>
       </View>
     );
   }
@@ -115,6 +139,7 @@ export default function DivvyHomeScreen() {
                 stroke="white"
                 strokeWidth={3}
                 fill="transparent"
+                strokeDasharray="10 8"
               />
 
               {rectangleLines.map((line, index) => (
@@ -138,44 +163,114 @@ export default function DivvyHomeScreen() {
         <Text style={styles.subtitle}>
           {shape} · {pieces} pieces
           {shape === "circle" ? ` · ${(360 / pieces).toFixed(1)}° each` : ""}
+          {shape === "rectangle" ? ` · ${rectangleDirection} cuts` : ""}
         </Text>
       </View>
 
-      <View style={styles.shapeControls}>
-        <Button title="Circle" onPress={() => setShape("circle")} />
-        <Button title="Rectangle" onPress={() => setShape("rectangle")} />
-      </View>
+      {controlsVisible ? (
+        <View style={styles.controlsPanel}>
+          <View style={styles.controlsHeader}>
+            <Text style={styles.controlsTitle}>Controls</Text>
 
-      <View style={styles.controls}>
-        <Button
-          title="-"
-          onPress={() => setPieces((value) => Math.max(2, value - 1))}
-        />
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => setControlsVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
+            </Pressable>
+          </View>
 
-        <Text style={styles.controlText}>{pieces}</Text>
+          <View style={styles.controlGroup}>
+            <Text style={styles.label}>Select shape</Text>
 
-        <Button
-          title="+"
-          onPress={() => setPieces((value) => Math.min(16, value + 1))}
-        />
+            <View style={styles.segmentedControl}>
+              <Pressable
+                style={[
+                  styles.segmentButton,
+                  shape === "circle" && styles.segmentButtonActive,
+                ]}
+                onPress={() => setShape("circle")}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    shape === "circle" && styles.segmentTextActive,
+                  ]}
+                >
+                  Circle
+                </Text>
+              </Pressable>
 
-        <Button
-          title="Smaller"
-          onPress={() => setRadiusScale((value) => Math.max(0.5, value - 0.1))}
-        />
+              <Pressable
+                style={[
+                  styles.segmentButton,
+                  shape === "rectangle" && styles.segmentButtonActive,
+                ]}
+                onPress={() => setShape("rectangle")}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    shape === "rectangle" && styles.segmentTextActive,
+                  ]}
+                >
+                  Rectangle
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
-        <Button
-          title="Bigger"
-          onPress={() => setRadiusScale((value) => Math.min(1.5, value + 0.1))}
-        />
+          <View style={styles.controlGroup}>
+            <Text style={styles.label}>Pieces: {pieces}</Text>
 
-        {shape === "circle" && (
-          <Button
-            title="Rotate"
-            onPress={() => setRotation((value) => value + 10)}
-          />
-        )}
-      </View>
+            <Slider
+              minimumValue={2}
+              maximumValue={16}
+              step={1}
+              value={pieces}
+              onValueChange={setPieces}
+              minimumTrackTintColor="white"
+              maximumTrackTintColor="rgba(255, 255, 255, 0.35)"
+              thumbTintColor="white"
+            />
+          </View>
+
+          <View style={styles.controlGroup}>
+            <Text style={styles.label}>Size: {sizeScale.toFixed(1)}x</Text>
+
+            <Slider
+              minimumValue={0.5}
+              maximumValue={1.5}
+              step={0.1}
+              value={sizeScale}
+              onValueChange={setSizeScale}
+              minimumTrackTintColor="white"
+              maximumTrackTintColor="rgba(255, 255, 255, 0.35)"
+              thumbTintColor="white"
+            />
+          </View>
+
+          {shape === "rectangle" && (
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() =>
+                setRectangleDirection((value) =>
+                  value === "horizontal" ? "vertical" : "horizontal"
+                )
+              }
+            >
+              <Text style={styles.primaryButtonText}>Rotate rectangle</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : (
+        <Pressable
+          style={styles.showControlsButton}
+          onPress={() => setControlsVisible(true)}
+        >
+          <Text style={styles.showControlsButtonText}>Controls</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -214,32 +309,98 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textTransform: "capitalize",
   },
-  shapeControls: {
+  controlsPanel: {
     position: "absolute",
-    bottom: 135,
     left: 20,
     right: 20,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-    padding: 12,
-    borderRadius: 16,
-  },
-  controls: {
-    position: "absolute",
-    bottom: 50,
-    left: 20,
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    bottom: 35,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 18,
   },
-  controlText: {
+  controlsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  controlsTitle: {
     color: "white",
-    fontSize: 24,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  closeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeButtonText: {
+    color: "white",
+    fontSize: 26,
+    lineHeight: 28,
+    fontWeight: "700",
+  },
+  controlGroup: {
+    marginBottom: 12,
+  },
+  label: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    borderRadius: 14,
+    padding: 4,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  segmentButtonActive: {
+    backgroundColor: "white",
+  },
+  segmentText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  segmentTextActive: {
+    color: "black",
+  },
+  primaryButton: {
+    backgroundColor: "white",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  showControlsButton: {
+    position: "absolute",
+    right: 20,
+    bottom: 45,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderColor: "white",
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+  },
+  showControlsButtonText: {
+    color: "white",
+    fontSize: 16,
     fontWeight: "700",
   },
 });
